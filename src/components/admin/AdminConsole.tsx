@@ -85,7 +85,7 @@ export default function AdminConsole() {
           onClick={() => navigateTo('profile')} 
           className="rounded-xl bg-[#F78FB3] px-6 py-3 font-bold text-xs text-white shadow-md cursor-pointer"
         >
-          Customer Dashboard / Demo Shortcuts
+          Go to Customer Profile
         </button>
       </div>
     );

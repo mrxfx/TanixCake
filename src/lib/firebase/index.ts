@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeFirestore } from 'firebase/firestore';
+import { initializeFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import firebaseConfigData from '../../../firebase-applet-config.json';
 
@@ -21,6 +21,13 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 const db = initializeFirestore(app, {
   databaseId: firebaseConfig.firestoreDatabaseId || '(default)'
 });
+
+// Enable IndexedDB offline persistence to avoid "client is offline" errors in browser sandbox
+if (typeof window !== 'undefined') {
+  enableIndexedDbPersistence(db).catch((err) => {
+    console.warn('Firestore offline persistence failed:', err.code);
+  });
+}
 
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();

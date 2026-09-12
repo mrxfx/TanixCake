@@ -61,7 +61,6 @@ interface AppContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, name: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  loginAsDemoAdmin: () => Promise<void>;
 
   // Cart
   cart: OrderItem[];
@@ -171,12 +170,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        // Sync user profile from Firestore
-        let profile = await getUserProfile(firebaseUser.uid);
-        
-        if (!profile) {
-          // If profile doesn't exist yet, create it
-          profile = {
+        try {
+          // Sync user profile from Firestore
+          let profile = await getUserProfile(firebaseUser.uid);
+          
+          if (!profile) {
+            // If profile doesn't exist yet, create it
+            profile = {
+              uid: firebaseUser.uid,
+              name: firebaseUser.displayName || 'Sweet Customer',
+              email: firebaseUser.email || '',
+              role: firebaseUser.email === 'admin@sweetbytani.com' ? 'admin' : 'customer',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
+            await createUserProfile(profile);
+          }
+          setUserProfile(profile);
+        } catch (profileErr: any) {
+          console.warn('Could not sync online user profile (client offline), using local fallback profile:', profileErr);
+          // High quality in-memory local fallback profile so checkout & navigation don't freeze or crash
+          const fallbackProfile: UserProfile = {
             uid: firebaseUser.uid,
             name: firebaseUser.displayName || 'Sweet Customer',
             email: firebaseUser.email || '',
@@ -184,9 +198,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
           };
-          await createUserProfile(profile);
+          setUserProfile(fallbackProfile);
         }
-        setUserProfile(profile);
 
         // SYNC GUEST FAVORITES WITH FIRESTORE
         const guestFavs = JSON.parse(localStorage.getItem('sbt_favorites') || '[]');
@@ -277,42 +290,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Quick Demo Admin Login Action for AI Studio review/testing ease
-  const loginAsDemoAdmin = async () => {
-    setAuthLoading(true);
-    try {
-      const adminEmail = 'admin@sweetbytani.com';
-      const adminPass = 'admin123';
-      
-      try {
-        await signInWithEmailAndPassword(auth, adminEmail, adminPass);
-      } catch (loginErr) {
-        // If login fails (user doesn't exist yet in Auth), register it!
-        await createUserWithEmailAndPassword(auth, adminEmail, adminPass);
-      }
 
-      // Ensure profile exists in Firestore and has role 'admin'
-      const adminUser = auth.currentUser;
-      if (adminUser) {
-        const profile: UserProfile = {
-          uid: adminUser.uid,
-          name: 'Tani (Admin) 👩‍🍳',
-          email: adminEmail,
-          role: 'admin',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        await createUserProfile(profile);
-        setUserProfile(profile);
-      }
-
-      showToast('Admin Logged in! Welcome back, Tani! ✨', 'success');
-      setCurrentPage('admin');
-    } catch (e: any) {
-      showToast('Demo Admin setup failed: ' + formatAuthError(e), 'error');
-    } finally {
-      setAuthLoading(false);
-    }
-  };
 
   // CART ACTIONS
   const addToCart = (item: OrderItem) => {
@@ -430,7 +408,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         login,
         register,
         logout,
-        loginAsDemoAdmin,
         cart,
         addToCart,
         removeFromCart,

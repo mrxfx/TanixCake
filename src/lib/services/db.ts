@@ -43,17 +43,12 @@ const usersCol = () => collection(db, 'users');
 // A. USER PROFILE SERVICES
 // ============================================================
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
-  try {
-    const docRef = doc(db, 'users', uid);
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-      return snap.data() as UserProfile;
-    }
-    return null;
-  } catch (e) {
-    console.error('Error fetching user profile:', e);
-    return null;
+  const docRef = doc(db, 'users', uid);
+  const snap = await getDoc(docRef);
+  if (snap.exists()) {
+    return snap.data() as UserProfile;
   }
+  return null;
 }
 
 export async function createUserProfile(profile: UserProfile): Promise<void> {

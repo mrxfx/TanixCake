@@ -12,7 +12,6 @@ export default function ProfilePage() {
     authLoading, 
     login, 
     register, 
-    loginAsDemoAdmin, 
     favorites, 
     toggleFavorite,
     settings,
@@ -112,21 +111,7 @@ export default function ProfilePage() {
     }
   };
 
-  const handleDemoCustomerLogin = async () => {
-    setAuthSubmitting(true);
-    try {
-      await login('customer@sweetbytani.com', 'customer123');
-    } catch (err) {
-      // If customer doesn't exist, register them!
-      try {
-        await register('customer@sweetbytani.com', 'Sarah Jenkins 🌸', 'customer123');
-      } catch (regErr: any) {
-        console.error('Demo customer setup failed:', regErr);
-      }
-    } finally {
-      setAuthSubmitting(false);
-    }
-  };
+
 
   if (authLoading) {
     return (
@@ -222,28 +207,7 @@ export default function ProfilePage() {
             </button>
           </div>
 
-          <hr className="border-pink-50 dark:border-zinc-800" />
 
-          {/* Fast Testing shortcuts */}
-          <div className="space-y-2">
-            <p className="text-[10px] font-bold text-[#4B4453]/50 dark:text-zinc-500 uppercase text-center tracking-wider">Fast-Track Test shortcuts</p>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={handleDemoCustomerLogin}
-                className="rounded-xl border border-pink-100 hover:bg-pink-50 text-[11px] font-bold py-2 px-1 text-center text-[#F78FB3] cursor-pointer"
-              >
-                Demo Customer 🌸
-              </button>
-              <button
-                type="button"
-                onClick={loginAsDemoAdmin}
-                className="rounded-xl border border-zinc-200 hover:bg-zinc-50 text-[11px] font-bold py-2 px-1 text-center text-zinc-700 cursor-pointer"
-              >
-                Demo Admin 👩‍🍳
-              </button>
-            </div>
-          </div>
 
         </div>
       </div>
