@@ -7,10 +7,27 @@ import { motion } from 'motion/react';
 
 export default function Homepage() {
   const { navigateTo, toggleFavorite, isFavorite, settings } = useAppContext();
-  const [cakes, setCakes] = useState<Cake[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // SWR: Initialize state with local storage cache for instant 0ms rendering
+  const [cakes, setCakes] = useState<Cake[]>(() => {
+    const cached = localStorage.getItem('sbt_cached_cakes');
+    return cached ? JSON.parse(cached) : [];
+  });
+  const [categories, setCategories] = useState<Category[]>(() => {
+    const cached = localStorage.getItem('sbt_cached_categories');
+    return cached ? JSON.parse(cached) : [];
+  });
+  const [reviews, setReviews] = useState<Review[]>(() => {
+    const cached = localStorage.getItem('sbt_cached_reviews');
+    return cached ? JSON.parse(cached) : [];
+  });
+  
+  // If we have cached items, we can bypass the initial loading screen!
+  const [loading, setLoading] = useState(() => {
+    const cachedCakes = localStorage.getItem('sbt_cached_cakes');
+    return !cachedCakes; // Only show loader if we have absolutely nothing cached
+  });
+  
   const [activeReviewIdx, setActiveReviewIdx] = useState(0);
 
   useEffect(() => {
@@ -21,9 +38,19 @@ export default function Homepage() {
           getCategories(),
           getReviews()
         ]);
-        setCakes(allCakes.filter(c => c.available));
-        setCategories(allCats.filter(cat => cat.active));
-        setReviews(allReviews.filter(r => r.approved && r.featured));
+        
+        const filteredCakes = allCakes.filter(c => c.available);
+        const filteredCats = allCats.filter(cat => cat.active);
+        const filteredReviews = allReviews.filter(r => r.approved && r.featured);
+
+        setCakes(filteredCakes);
+        setCategories(filteredCats);
+        setReviews(filteredReviews);
+
+        // Update caches for next visit
+        localStorage.setItem('sbt_cached_cakes', JSON.stringify(filteredCakes));
+        localStorage.setItem('sbt_cached_categories', JSON.stringify(filteredCats));
+        localStorage.setItem('sbt_cached_reviews', JSON.stringify(filteredReviews));
       } catch (e) {
         console.error('Error loading homepage data:', e);
       } finally {

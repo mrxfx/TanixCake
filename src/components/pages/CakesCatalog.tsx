@@ -7,9 +7,22 @@ import { motion, AnimatePresence } from 'motion/react';
 
 export default function CakesCatalog() {
   const { navigateTo, toggleFavorite, isFavorite, addToCart, settings } = useAppContext();
-  const [cakes, setCakes] = useState<Cake[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // SWR: Initialize state with local storage cache for instant 0ms rendering
+  const [cakes, setCakes] = useState<Cake[]>(() => {
+    const cached = localStorage.getItem('sbt_cached_all_cakes');
+    return cached ? JSON.parse(cached) : [];
+  });
+  const [categories, setCategories] = useState<Category[]>(() => {
+    const cached = localStorage.getItem('sbt_cached_all_categories');
+    return cached ? JSON.parse(cached) : [];
+  });
+  
+  // If we have cached items, we can bypass the initial loading screen!
+  const [loading, setLoading] = useState(() => {
+    const cachedCakes = localStorage.getItem('sbt_cached_all_cakes');
+    return !cachedCakes; // Only show loader if we have absolutely nothing cached
+  });
 
   // Search/Filters State
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,8 +40,15 @@ export default function CakesCatalog() {
           getCakes(),
           getCategories()
         ]);
+        
+        const filteredCats = allCats.filter(c => c.active);
+
         setCakes(allCakes);
-        setCategories(allCats.filter(c => c.active));
+        setCategories(filteredCats);
+
+        // Update caches for next visit
+        localStorage.setItem('sbt_cached_all_cakes', JSON.stringify(allCakes));
+        localStorage.setItem('sbt_cached_all_categories', JSON.stringify(filteredCats));
         
         // Find maximum cake price to initialize filter slider
         if (allCakes.length > 0) {

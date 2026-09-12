@@ -492,7 +492,7 @@ export async function deleteOffer(id: string): Promise<void> {
 // ============================================================
 // I. BUSINESS SETTINGS SERVICES
 // ============================================================
-const DEFAULT_SETTINGS: BusinessSettings = {
+export const DEFAULT_SETTINGS: BusinessSettings = {
   businessName: 'Sweet by Tani',
   tagline: 'Freshly Baked with Love 🩷',
   phone: '+44 7123 456789',

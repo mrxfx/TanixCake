@@ -15,7 +15,7 @@ import {
   BusinessSettings, 
   Notification 
 } from '../types';
-import { getBusinessSettings, getUserProfile, createUserProfile, seedDatabaseIfNeeded } from '../lib/services/db';
+import { getBusinessSettings, getUserProfile, createUserProfile, seedDatabaseIfNeeded, DEFAULT_SETTINGS } from '../lib/services/db';
 
 /**
  * Translates Firebase Auth error codes into clear, beautifully friendly, 
@@ -124,7 +124,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const toggleTheme = () => {};
 
   // Business Settings Cache
-  const [settings, setSettings] = useState<BusinessSettings | null>(null);
+  const [settings, setSettings] = useState<BusinessSettings>(DEFAULT_SETTINGS);
 
   // Toast Notifications
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -132,16 +132,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Simple Client Router State
   const [currentPage, setCurrentPage] = useState('home');
 
-  // Load Settings and Seed DB on mount
+  // Load Settings and Seed DB on mount (in parallel and non-blocking!)
   useEffect(() => {
-    async function initApp() {
-      // Seed if empty (extremely useful for immediate visual pleasure)
-      await seedDatabaseIfNeeded();
-      
-      const bizSettings = await getBusinessSettings();
-      setSettings(bizSettings);
+    // 1. Kickoff seeding in background
+    seedDatabaseIfNeeded().catch((err) => {
+      console.warn('Background database seeding failed:', err);
+    });
+
+    // 2. Load custom business settings in background
+    async function fetchSettings() {
+      try {
+        const bizSettings = await getBusinessSettings();
+        setSettings(bizSettings);
+      } catch (err) {
+        console.warn('Could not load custom business settings, using defaults:', err);
+      }
     }
-    initApp();
+    fetchSettings();
   }, []);
 
   // Sync Cart to LocalStorage
@@ -167,16 +174,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Listen to Auth State
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
+      
       if (firebaseUser) {
-        try {
-          // Sync user profile from Firestore
-          let profile = await getUserProfile(firebaseUser.uid);
-          
-          if (!profile) {
-            // If profile doesn't exist yet, create it
-            profile = {
+        // Run profile and favorites sync in the background so we NEVER block the loading state!
+        const syncUserSession = async () => {
+          try {
+            // Sync user profile from Firestore
+            let profile = await getUserProfile(firebaseUser.uid);
+            
+            if (!profile) {
+              // If profile doesn't exist yet, create it
+              profile = {
+                uid: firebaseUser.uid,
+                name: firebaseUser.displayName || 'Sweet Customer',
+                email: firebaseUser.email || '',
+                role: firebaseUser.email === 'admin@sweetbytani.com' ? 'admin' : 'customer',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              };
+              await createUserProfile(profile);
+            }
+            setUserProfile(profile);
+          } catch (profileErr: any) {
+            console.warn('Could not sync online user profile (client offline), using local fallback profile:', profileErr);
+            // High quality in-memory local fallback profile so checkout & navigation don't freeze or crash
+            const fallbackProfile: UserProfile = {
               uid: firebaseUser.uid,
               name: firebaseUser.displayName || 'Sweet Customer',
               email: firebaseUser.email || '',
@@ -184,61 +208,62 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString()
             };
-            await createUserProfile(profile);
+            setUserProfile(fallbackProfile);
           }
-          setUserProfile(profile);
-        } catch (profileErr: any) {
-          console.warn('Could not sync online user profile (client offline), using local fallback profile:', profileErr);
-          // High quality in-memory local fallback profile so checkout & navigation don't freeze or crash
-          const fallbackProfile: UserProfile = {
-            uid: firebaseUser.uid,
-            name: firebaseUser.displayName || 'Sweet Customer',
-            email: firebaseUser.email || '',
-            role: firebaseUser.email === 'admin@sweetbytani.com' ? 'admin' : 'customer',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
-          setUserProfile(fallbackProfile);
-        }
 
-        // SYNC GUEST FAVORITES WITH FIRESTORE
-        const guestFavs = JSON.parse(localStorage.getItem('sbt_favorites') || '[]');
-        if (guestFavs.length > 0) {
-          try {
-            const userRef = doc(db, 'users', firebaseUser.uid);
-            // Fetch profile again or use current list
-            const currentProfileSnap = await getDoc(userRef);
-            const currentProfileData = currentProfileSnap.data();
-            const currentFavs = currentProfileData?.favorites || [];
-            
-            // Merge unique
-            const mergedFavs = Array.from(new Set([...currentFavs, ...guestFavs]));
-            await updateDoc(userRef, { favorites: mergedFavs });
-            setFavorites(mergedFavs);
-            localStorage.removeItem('sbt_favorites'); // clear guest favorites now that they are synced
-            showToast('Merged your favorites list successfully! 💖', 'success');
-          } catch (e) {
-            console.error('Error merging favorites:', e);
-          }
-        } else {
-          // Just load user's existing favorites from Firestore
-          try {
-            const userRef = doc(db, 'users', firebaseUser.uid);
-            const snap = await getDoc(userRef);
-            if (snap.exists() && snap.data().favorites) {
-              setFavorites(snap.data().favorites);
+          // SYNC GUEST FAVORITES WITH FIRESTORE
+          const guestFavs = JSON.parse(localStorage.getItem('sbt_favorites') || '[]');
+          if (guestFavs.length > 0) {
+            try {
+              const userRef = doc(db, 'users', firebaseUser.uid);
+              // Fetch profile again or use current list
+              const currentProfileSnap = await getDoc(userRef);
+              const currentProfileData = currentProfileSnap.data();
+              const currentFavs = currentProfileData?.favorites || [];
+              
+              // Merge unique
+              const mergedFavs = Array.from(new Set([...currentFavs, ...guestFavs]));
+              await updateDoc(userRef, { favorites: mergedFavs });
+              setFavorites(mergedFavs);
+              localStorage.setItem('sbt_favorites', JSON.stringify(mergedFavs)); // Cache locally in real-time
+              showToast('Merged your favorites list successfully! 💖', 'success');
+            } catch (e: any) {
+              console.warn('Could not merge favorites online (client offline). Using local backup:', e.message);
+              // Fallback: load local favorites since we are offline
+              const localBackup = JSON.parse(localStorage.getItem('sbt_favorites') || '[]');
+              setFavorites(localBackup);
             }
-          } catch (e) {
-            console.error('Error loading favorites:', e);
+          } else {
+            // Just load user's existing favorites from Firestore
+            try {
+              const userRef = doc(db, 'users', firebaseUser.uid);
+              const snap = await getDoc(userRef);
+              if (snap.exists() && snap.data().favorites) {
+                const remoteFavs = snap.data().favorites;
+                setFavorites(remoteFavs);
+                localStorage.setItem('sbt_favorites', JSON.stringify(remoteFavs)); // Cache remote favorites locally too
+              } else {
+                const localBackup = JSON.parse(localStorage.getItem('sbt_favorites') || '[]');
+                setFavorites(localBackup);
+              }
+            } catch (e: any) {
+              console.warn('Could not load favorites online (client offline). Loading from local cache:', e.message);
+              // Fallback: load local cached favorites so customer view remains populated
+              const localBackup = JSON.parse(localStorage.getItem('sbt_favorites') || '[]');
+              setFavorites(localBackup);
+            }
           }
-        }
+        };
 
+        syncUserSession();
       } else {
         setUserProfile(null);
         // Load favorites from local storage
         const localFavs = localStorage.getItem('sbt_favorites');
         setFavorites(localFavs ? JSON.parse(localFavs) : []);
       }
+      
+      // Instantly unblock rendering so we never freeze or hang on the loading screen
       setAuthLoading(false);
     });
 
@@ -360,6 +385,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       showToast('Added to favorites! 💖', 'success');
     }
     setFavorites(updated);
+    localStorage.setItem('sbt_favorites', JSON.stringify(updated)); // ALWAYS keep local storage updated in sync immediately
 
     // If logged in, update Firestore
     if (user) {
@@ -369,7 +395,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           favorites: isFav ? arrayRemove(cakeId) : arrayUnion(cakeId)
         });
       } catch (e) {
-        console.error('Error saving favorite to Firestore:', e);
+        console.warn('Error saving favorite online (client offline):', e);
       }
     }
   };
