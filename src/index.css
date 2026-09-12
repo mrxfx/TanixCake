@@ -1,0 +1,125 @@
+@import "tailwindcss";
+@variant dark (.dark-mode &);
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Poppins:ital,wght@0,100..900;1,100..900&display=swap');
+
+:root {
+  --font-display: 'Playfair Display', Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-body: 'Poppins', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  
+  --primary-pink: #FFB6C1;
+  --secondary-pink: #FFDDEB;
+  --accent-pink: #F78FB3;
+  --bg-cream: #FFF8FB;
+  --text-dark: #4B4453;
+  --text-light: #F0EAF1;
+  --shadow-soft: 0 10px 30px -10px rgba(247, 143, 179, 0.15);
+  --shadow-medium: 0 15px 40px -12px rgba(247, 143, 179, 0.25);
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--bg-cream);
+  color: var(--text-dark);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  overflow-x: hidden;
+}
+
+/* Dark mode overrides */
+.dark-mode {
+  --bg-cream: #1A1618;
+  --text-dark: #F5EEF0;
+  --text-light: #302A2D;
+  --primary-pink: #F78FB3;
+  --secondary-pink: #352328;
+  --shadow-soft: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+  --shadow-medium: 0 15px 40px -12px rgba(0, 0, 0, 0.6);
+  background-color: #1A1618;
+  color: #F5EEF0;
+}
+
+h1, h2, h3, h4, h5, h6, .font-display {
+  font-family: var(--font-display);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-cream);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--primary-pink);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-pink);
+}
+
+/* Glassmorphism utility */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.dark-mode .glass {
+  background: rgba(36, 31, 35, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Decorative classes */
+.pink-gradient {
+  background: linear-gradient(135deg, var(--secondary-pink) 0%, var(--bg-cream) 100%);
+}
+
+.dark-mode .pink-gradient {
+  background: linear-gradient(135deg, #2D1A20 0%, #1A1618 100%);
+}
+
+.pink-glow {
+  box-shadow: 0 0 20px rgba(247, 143, 179, 0.2);
+}
+
+/* Shimmer animation for skeleton loaders */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #f0eaf0 25%, #f7f1f7 50%, #f0eaf0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.dark-mode .shimmer {
+  background: linear-gradient(90deg, #2d2629 25%, #383034 50%, #2d2629 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Teddy float animation */
+@keyframes float {
+  0% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(2deg); }
+  100% { transform: translateY(0px) rotate(0deg); }
+}
+
+.teddy-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* Pulse soft glow */
+@keyframes pulseGlow {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+
+.pulse-glow {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
