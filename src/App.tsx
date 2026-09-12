@@ -1,18 +1,19 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { AppProvider, useAppContext } from './hooks/useAppContext';
 import Navbar from './components/Navbar';
 import MobileNav from './components/MobileNav';
 import Footer from './components/Footer';
 import ToastContainer from './components/ToastContainer';
 
-// Pages
-import Homepage from './components/pages/Homepage';
-import CakesCatalog from './components/pages/CakesCatalog';
-import CartPage from './components/pages/CartPage';
-import CheckoutPage from './components/pages/CheckoutPage';
-import OrderSuccessPage from './components/pages/OrderSuccessPage';
-import ProfilePage from './components/pages/ProfilePage';
-import AdminConsole from './components/admin/AdminConsole';
+// Lazy-loaded heavy page components
+const Homepage = lazy(() => import('./components/pages/Homepage'));
+const CakesCatalog = lazy(() => import('./components/pages/CakesCatalog'));
+const CartPage = lazy(() => import('./components/pages/CartPage'));
+const CheckoutPage = lazy(() => import('./components/pages/CheckoutPage'));
+const OrderSuccessPage = lazy(() => import('./components/pages/OrderSuccessPage'));
+const ProfilePage = lazy(() => import('./components/pages/ProfilePage'));
+const AdminConsole = lazy(() => import('./components/admin/AdminConsole'));
+
 import { 
   CategoriesPage, 
   GalleryPage, 
@@ -21,6 +22,14 @@ import {
   FAQPage, 
   ContactPage 
 } from './components/pages/StaticPages';
+
+// Dynamic high-performance inline loading placeholder
+const PageLoader = () => (
+  <div className="flex flex-col items-center justify-center min-h-[50vh] py-12">
+    <div className="w-10 h-10 border-4 border-pink-100 border-t-pink-500 rounded-full animate-spin"></div>
+    <p className="mt-4 text-xs font-medium text-pink-600/70 animate-pulse">Preparing delicious cakes...</p>
+  </div>
+);
 
 function AppContent() {
   const { currentPage } = useAppContext();
@@ -74,9 +83,11 @@ function AppContent() {
       {/* Header */}
       {!isAdminView && <Navbar />}
 
-      {/* Main Container */}
+      {/* Main Container with dynamic lazy loading context */}
       <main className="flex-grow">
-        {renderPage()}
+        <Suspense fallback={<PageLoader />}>
+          {renderPage()}
+        </Suspense>
       </main>
 
       {/* Footer */}

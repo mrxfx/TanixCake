@@ -515,14 +515,35 @@ export async function getBusinessSettings(): Promise<BusinessSettings> {
     const docRef = doc(db, 'settings', 'business');
     const snap = await getDoc(docRef);
     if (snap.exists()) {
-      return { ...DEFAULT_SETTINGS, ...snap.data() } as BusinessSettings;
+      const settings = { ...DEFAULT_SETTINGS, ...snap.data() } as BusinessSettings;
+      localStorage.setItem('sbt_business_settings', JSON.stringify(settings));
+      return settings;
     } else {
       // Save default settings
-      await setDoc(docRef, DEFAULT_SETTINGS);
+      try {
+        await setDoc(docRef, DEFAULT_SETTINGS);
+      } catch (saveErr) {
+        // Suppress write errors when offline during initial boot
+      }
+      localStorage.setItem('sbt_business_settings', JSON.stringify(DEFAULT_SETTINGS));
       return DEFAULT_SETTINGS;
     }
-  } catch (e) {
-    console.error('Error getting settings:', e);
+  } catch (e: any) {
+    const isOffline = e?.message?.toLowerCase().includes('offline') || e?.code === 'unavailable';
+    if (isOffline) {
+      console.warn('Could not get business settings (client offline). Using cached settings.');
+    } else {
+      console.error('Error getting settings:', e);
+    }
+    
+    try {
+      const cached = localStorage.getItem('sbt_business_settings');
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (cacheErr) {
+      // ignore
+    }
     return DEFAULT_SETTINGS;
   }
 }
