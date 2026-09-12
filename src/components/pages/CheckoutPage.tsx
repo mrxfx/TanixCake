@@ -3,6 +3,7 @@ import { useAppContext } from '../../hooks/useAppContext';
 import { createOrder } from '../../lib/services/db';
 import { uploadImage } from '../../lib/services/image';
 import { Upload, ClipboardCheck, Clock, Calendar, Image as ImageIcon, AlertCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function CheckoutPage() {
   const { 

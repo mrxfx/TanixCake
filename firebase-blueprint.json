@@ -1,0 +1,124 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account registration and preferences",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Cake": {
+      "title": "Cake",
+      "description": "A cake item offered in the catalog",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "categoryId": { "type": "string" },
+        "flavor": { "type": "string" },
+        "weights": { "type": "array" },
+        "images": { "type": "array" },
+        "featured": { "type": "boolean" },
+        "bestseller": { "type": "boolean" },
+        "available": { "type": "boolean" },
+        "rating": { "type": "number" }
+      },
+      "required": ["name", "slug", "price", "categoryId"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Cake collection category listing",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "description": { "type": "string" },
+        "active": { "type": "boolean" },
+        "image": { "type": "string" }
+      },
+      "required": ["name", "slug"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer purchase transaction record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderNumber": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "email": { "type": "string" },
+        "items": { "type": "array" },
+        "deliveryType": { "type": "string" },
+        "deliveryDate": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string" }
+      },
+      "required": ["orderNumber", "customerName", "email", "items", "totalAmount"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Moderated review written by customers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerName": { "type": "string" },
+        "rating": { "type": "number" },
+        "reviewText": { "type": "string" },
+        "approved": { "type": "boolean" },
+        "featured": { "type": "boolean" }
+      },
+      "required": ["customerName", "rating", "reviewText"]
+    },
+    "Settings": {
+      "title": "Business Settings",
+      "description": "Store contact details and checkout requirements",
+      "type": "object",
+      "properties": {
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "currency": { "type": "string" },
+        "deliveryCharge": { "type": "number" },
+        "minimumOrder": { "type": "number" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/cakes/{cakeId}": {
+      "schema": "Cake",
+      "description": "Cake items in the inventory"
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Product categories"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer purchase orders"
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "User reviews"
+    },
+    "/settings/{docId}": {
+      "schema": "Settings",
+      "description": "Business parameter documents"
+    }
+  }
+}

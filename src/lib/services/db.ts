@@ -13,7 +13,54 @@ import {
   limit,
   writeBatch
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
+
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid || null,
+      email: auth.currentUser?.email || null,
+      emailVerified: auth.currentUser?.emailVerified || null,
+      isAnonymous: auth.currentUser?.isAnonymous || null,
+      tenantId: auth.currentUser?.tenantId || null,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
 import { 
   Cake, 
   Order, 
@@ -23,7 +70,7 @@ import {
   FAQ, 
   Offer, 
   BusinessSettings,
-  Notification,
+  Notification as AppNotification,
   UserProfile
 } from '../../types';
 
@@ -88,7 +135,10 @@ export async function getCakes(): Promise<Cake[]> {
   try {
     const snap = await getDocs(cakesCol());
     return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Cake);
-  } catch (e) {
+  } catch (e: any) {
+    if (e?.code === 'permission-denied' || e?.message?.toLowerCase().includes('permission')) {
+      handleFirestoreError(e, OperationType.GET, 'cakes');
+    }
     console.error('Error fetching cakes:', e);
     return [];
   }
@@ -160,7 +210,10 @@ export async function getCategories(): Promise<Category[]> {
   try {
     const snap = await getDocs(categoriesCol());
     return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Category);
-  } catch (e) {
+  } catch (e: any) {
+    if (e?.code === 'permission-denied' || e?.message?.toLowerCase().includes('permission')) {
+      handleFirestoreError(e, OperationType.GET, 'categories');
+    }
     console.error('Error fetching categories:', e);
     return [];
   }
@@ -363,7 +416,10 @@ export async function getReviews(): Promise<Review[]> {
   try {
     const snap = await getDocs(reviewsCol());
     return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Review);
-  } catch (e) {
+  } catch (e: any) {
+    if (e?.code === 'permission-denied' || e?.message?.toLowerCase().includes('permission')) {
+      handleFirestoreError(e, OperationType.GET, 'reviews');
+    }
     console.error('Error fetching reviews:', e);
     return [];
   }
@@ -529,6 +585,10 @@ export async function getBusinessSettings(): Promise<BusinessSettings> {
       return DEFAULT_SETTINGS;
     }
   } catch (e: any) {
+    if (e?.code === 'permission-denied' || e?.message?.toLowerCase().includes('permission')) {
+      handleFirestoreError(e, OperationType.GET, 'settings/business');
+    }
+    
     const isOffline = e?.message?.toLowerCase().includes('offline') || e?.code === 'unavailable';
     if (isOffline) {
       console.warn('Could not get business settings (client offline). Using cached settings.');
@@ -552,7 +612,10 @@ export async function updateBusinessSettings(data: Partial<BusinessSettings>): P
   try {
     const docRef = doc(db, 'settings', 'business');
     await setDoc(docRef, data, { merge: true });
-  } catch (e) {
+  } catch (e: any) {
+    if (e?.code === 'permission-denied' || e?.message?.toLowerCase().includes('permission')) {
+      handleFirestoreError(e, OperationType.WRITE, 'settings/business');
+    }
     console.error('Error updating settings:', e);
     throw e;
   }
@@ -562,7 +625,7 @@ export async function updateBusinessSettings(data: Partial<BusinessSettings>): P
 // ============================================================
 // J. NOTIFICATIONS SERVICES
 // ============================================================
-export async function getNotifications(userId?: string): Promise<Notification[]> {
+export async function getNotifications(userId?: string): Promise<AppNotification[]> {
   try {
     let q;
     if (userId) {
@@ -573,13 +636,13 @@ export async function getNotifications(userId?: string): Promise<Notification[]>
       q = query(notificationsCol(), where('userId', '==', null), orderBy('createdAt', 'desc'));
     }
     const snap = await getDocs(q);
-    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Notification);
+    return snap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) }) as AppNotification);
   } catch (e) {
     console.error('Error fetching notifications:', e);
     // If complex query fails due to index, fetch all notifications and filter
     try {
       const snap = await getDocs(notificationsCol());
-      const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Notification);
+      const all = snap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) }) as AppNotification);
       const filtered = all.filter(n => userId ? n.userId === userId : !n.userId);
       return filtered.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     } catch (err) {
@@ -589,7 +652,7 @@ export async function getNotifications(userId?: string): Promise<Notification[]>
   }
 }
 
-export async function createNotification(notif: Omit<Notification, 'id'>): Promise<string> {
+export async function createNotification(notif: Omit<AppNotification, 'id'>): Promise<string> {
   try {
     const docRef = await addDoc(notificationsCol(), notif);
     return docRef.id;
@@ -824,7 +887,11 @@ export async function seedDatabaseIfNeeded(): Promise<void> {
     // 6. Ensure default settings exist
     await getBusinessSettings();
 
-  } catch (e) {
+  } catch (e: any) {
+    if (e?.code === 'permission-denied' || e?.message?.toLowerCase().includes('permission')) {
+      console.warn('Silent seeding check: Guest user ignored write-permission on database seeding.');
+      return;
+    }
     console.error('Error in self-seeding engine:', e);
   }
 }

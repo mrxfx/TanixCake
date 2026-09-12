@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../hooks/useAppContext';
 import { getOrder } from '../../lib/services/db';
 import { Order } from '../../types';
-import { Sparkles, Calendar, MessageSquare, CheckCircle, Package, MapPin } from 'lucide-react';
+import { Sparkles, Calendar, MessageSquare, CheckCircle, Package, MapPin, Clock } from 'lucide-react';
 
 export default function OrderSuccessPage() {
   const { settings, navigateTo } = useAppContext();

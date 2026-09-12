@@ -13,12 +13,10 @@ service cloud.firestore {
 
     // Helper: Check if the user is an admin
     // In this app, we will assign an admin flag or email checks.
-    // We can store admin flags in the users collection or check a custom claim / standard list of emails.
     function isAdmin() {
       return isAuthenticated() && 
         (
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-          request.auth.token.email == 'admin@sweetbytani.com' ||
+          request.auth.token.email == 'rahulx@admin.com' ||
           request.auth.token.email == 'rahulhaldarx15@gmail.com'
         );
     }

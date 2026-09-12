@@ -47,6 +47,12 @@ function formatAuthError(error: any): string {
   return error.message || 'Authentication error occurred';
 }
 
+const isAdminEmail = (email: string | null): boolean => {
+  if (!email) return false;
+  const lower = email.toLowerCase();
+  return lower === 'admin@sweetbytani.com' || lower === 'rahulx@admin.com' || lower === 'rahulhaldarx15@gmail.com';
+};
+
 interface Toast {
   id: string;
   message: string;
@@ -190,11 +196,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 uid: firebaseUser.uid,
                 name: firebaseUser.displayName || 'Sweet Customer',
                 email: firebaseUser.email || '',
-                role: firebaseUser.email === 'admin@sweetbytani.com' ? 'admin' : 'customer',
+                role: isAdminEmail(firebaseUser.email) ? 'admin' : 'customer',
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
               };
               await createUserProfile(profile);
+            } else if (profile.role !== 'admin' && isAdminEmail(firebaseUser.email)) {
+              // Self-healing check: Automatically upgrade existing database profile to admin
+              profile.role = 'admin';
+              profile.updatedAt = new Date().toISOString();
+              try {
+                const userRef = doc(db, 'users', firebaseUser.uid);
+                await updateDoc(userRef, { role: 'admin', updatedAt: profile.updatedAt });
+                console.log('Self-healing check: Upgraded user profile to administrator in database.');
+              } catch (err) {
+                console.warn('Could not save auto-upgraded administrator role to database:', err);
+              }
             }
             setUserProfile(profile);
           } catch (profileErr: any) {
@@ -204,7 +221,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               uid: firebaseUser.uid,
               name: firebaseUser.displayName || 'Sweet Customer',
               email: firebaseUser.email || '',
-              role: firebaseUser.email === 'admin@sweetbytani.com' ? 'admin' : 'customer',
+              role: isAdminEmail(firebaseUser.email) ? 'admin' : 'customer',
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString()
             };
@@ -292,7 +309,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         uid: cred.user.uid,
         name,
         email,
-        role: email === 'admin@sweetbytani.com' ? 'admin' : 'customer',
+        role: isAdminEmail(email) ? 'admin' : 'customer',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
